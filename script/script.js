@@ -14,11 +14,13 @@ class Circle {
   }
 
   draw() {
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    ctx.closePath();
+		if(this.radius > 0) {
+			ctx.beginPath();
+			ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+			ctx.fillStyle = this.color;
+			ctx.fill();
+			ctx.closePath();
+		}
   }
 }
 class Projectile extends Circle {
@@ -61,6 +63,12 @@ class Gatling extends Projectile {
     this.age = 0;
   }
 }
+class Boomerang extends Projectile {
+  constructor (x, y, radius, color, velocity, dmg, penetration) {
+    super (x, y, radius, color, velocity, dmg, penetration)
+    this.age = 0;
+  }
+}
 class Enemy extends Circle {
   constructor (x, y, radius, color, velocity, score) {
     super (x, y, radius, color, velocity)
@@ -80,39 +88,50 @@ const opt = {
     speed: 10
   },
   proj: {
-    list: ["basic", "shotgun", "gatling"],
+    list: ["basic", "shotgun", "gatling", "boomerang"],
     cannon: {
       color: "white",
-      radius: 30,
+      radius: 100,
       speed: 30,
-      dmg: 50,
+      dmg: 75,
 			penetration: true,
       attackInterval: 2000 //(msec)
     },
     shotgun: {
       color: "white",
-      radius: 8,
+      radius: 5,
       speed: 15,
-      dmg: 40,
+      dmg: 200,
 			penetration: false,
       precision: 20, //(degree)
-      pellet: 8,
+      pellet: 16,
       attackInterval: 750 //(msec)
     },
     gatling: {
       color: "white",
       radius: 3,
       speed: 20,
-      dmg: 8,
+      dmg: 40,
 			penetration: false,
       precision: 10, //(degree)
       attackInterval: 100 //(msec)
-    }
+    },
+		boomerang: {
+			color: "white",
+      radius: 8,
+      speed: 40,
+			turnspeed: 20,
+			turnage: 20,
+      dmg: 1,
+			backdmg: 25,
+			penetration: true,
+      attackInterval: 250 //(msec)
+		}
   },
   enemy: {
     aliveRadius: 20,
     basic: {
-      spawnInterval: 2000, // (msec)
+      spawnInterval: 500, // (msec)
       color: 350,//hue value of hsl
       minRadius: 80,
       maxRadius: 100,
@@ -120,7 +139,7 @@ const opt = {
       score: 3000
     },
     chase: {
-      spawnInterval: 1000, // (msec)
+      spawnInterval: 750, // (msec)
       color: 250,//hue value of hsl
       minRadius: 30,
       maxRadius: 60,
@@ -156,7 +175,8 @@ const player = new Circle(canvas.width / 2, canvas.height / 2, opt.player.radius
 const projectiles = {
   cannon: [],
   shotgun: [],
-	gatling: []
+	gatling: [],
+	boomerang: []
 }
 const enemies = {
   basic: [],
@@ -207,6 +227,17 @@ function createGatlingProj() {
     }, opt.proj.gatling.dmg, opt.proj.gatling.penetration
   )
   projectiles.gatling.push(projectile);
+}
+function createBoomerangProj() {
+  state.launchable = false;
+  setTimeout(function() {state.launchable = true}, opt.proj.boomerang.attackInterval)
+  const projectile = new Boomerang(
+    player.x, player.y, opt.proj.boomerang.radius, opt.proj.boomerang.color, {
+      x: 0,
+      y: 0
+    }, opt.proj.boomerang.dmg, opt.proj.boomerang.penetration
+  )
+  projectiles.boomerang.push(projectile);
 }
 function createBasicEnemy() {
   setTimeout(createBasicEnemy, opt.enemy.basic.spawnInterval);
@@ -355,6 +386,24 @@ function projectilesUpdate() {
     })
   }
 }
+function boomerangUpdate() {
+	projectiles.boomerang.forEach(function(boo,booIndex) {
+		const dist = Math.hypot(player.x - boo.x, player.y - boo.y)
+		if(dist <= player.radius + boo.radius && boo.age >= opt.proj.boomerang.turnage) {
+			 projectiles.boomerang.splice(booIndex, 1);
+		}
+		if(boo.age < opt.proj.boomerang.turnage) {
+			const angleWithMouse = Math.atan2(mousePoint.y - player.y, mousePoint.x - player.x)
+			boo.velocity.x = Math.cos(angleWithMouse) * opt.proj.boomerang.speed;
+			boo.velocity.y = Math.sin(angleWithMouse) * opt.proj.boomerang.speed;
+		} else if (boo.age >= opt.proj.boomerang.turnage) {
+			const angleWithPlayer = Math.atan2(player.y - boo.y, player.x - boo.x);
+			boo.dmg = opt.proj.boomerang.backdmg;
+			boo.velocity.x = Math.cos(angleWithPlayer) * opt.proj.boomerang.turnspeed;
+			boo.velocity.y = Math.sin(angleWithPlayer) * opt.proj.boomerang.turnspeed;
+		}
+	})
+}
 function changeProj() {
   const length = opt.proj.list.length;
   const c = opt.proj.list.indexOf(state.proj);
@@ -426,7 +475,7 @@ function startEnemy() {
   createBasicEnemy();
   createChaseEnemy();
 }
-function startProj() {
+function makeProj() {
   if(state.launchable === true && keyPress.click === true) {
     if(state.proj === "basic") {
       createCannonProj();
@@ -434,7 +483,9 @@ function startProj() {
       createShotgunProj();
     } else if (state.proj === "gatling") {
       createGatlingProj();
-    }
+    } else if (state.proj === "boomerang") {
+			createBoomerangProj();
+		}
   }
 }
 //main animationLoof
@@ -452,8 +503,9 @@ function animationLoof() {
   ctx.fillStyle = `rgba(0, 0, 0, 0.1)`
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   playerUpdate();
-  startProj();
+  makeProj();
   projectilesUpdate();
+	boomerangUpdate();
   enemiesUpdate();
   chaseUpdate();
 }
