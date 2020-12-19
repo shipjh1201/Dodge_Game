@@ -1,6 +1,3 @@
-//mousemoveHandler() 완성하기
-//가속도를 가지고 쫓아오는 enemy 만들기 (satellite)
-//powerup 만들기
 const body = document.querySelector("body");
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
@@ -25,10 +22,11 @@ class Circle {
   }
 }
 class Projectile extends Circle {
-  constructor (x, y, radius, color, velocity, dmg) {
+  constructor (x, y, radius, color, velocity, dmg, penetration) {
     super (x, y, radius, color, velocity)
     this.velocity = {x: velocity.x, y: velocity.y};
     this.dmg = dmg;
+		this.penetration = penetration;
     this.age = 0;
   }
   move() {
@@ -37,12 +35,16 @@ class Projectile extends Circle {
     this.age += 1;
   }
 }
-class Shotgun extends Circle {
-  constructor (x, y, radius, color, velocity, dmg) {
-    super (x, y, radius, color, velocity)
-    this.velocity = {x: velocity.x, y: velocity.y};
+class Cannon extends Projectile {
+  constructor (x, y, radius, color, velocity, dmg, penetration) {
+    super (x, y, radius, color, velocity, dmg, penetration)
     this.age = 0;
-    this.dmg = dmg;
+  }
+}
+class Shotgun extends Projectile {
+  constructor (x, y, radius, color, velocity, dmg, penetration) {
+    super (x, y, radius, color, velocity, dmg, penetration)
+    this.age = 0;
   }
   move() {
     this.x = this.x + this.velocity.x;
@@ -53,17 +55,10 @@ class Shotgun extends Circle {
     }
   }
 }
-class Gatling extends Circle {
-  constructor (x, y, radius, color, velocity, dmg) {
-    super (x, y, radius, color, velocity)
-    this.velocity = {x: velocity.x, y: velocity.y};
-    this.dmg = dmg;
+class Gatling extends Projectile {
+  constructor (x, y, radius, color, velocity, dmg, penetration) {
+    super (x, y, radius, color, velocity, dmg, penetration)
     this.age = 0;
-  }
-  move() {
-    this.x = this.x + this.velocity.x;
-    this.y = this.y + this.velocity.y;
-    this.age += 1;
   }
 }
 class Enemy extends Circle {
@@ -77,7 +72,7 @@ class Enemy extends Circle {
     this.y = this.y + this.velocity.y;
   }
 }
-//Varibable opt(In progress, must not change)
+//Varibable opt(must not change in progress )
 const opt = {
   player: {
     color: "white",
@@ -88,25 +83,28 @@ const opt = {
     list: ["basic", "shotgun", "gatling"],
     cannon: {
       color: "white",
-      radius: 10,
-      speed: 15,
-      dmg: 16,
-      attackInterval: 200 //(msec)
+      radius: 30,
+      speed: 30,
+      dmg: 50,
+			penetration: true,
+      attackInterval: 2000 //(msec)
     },
     shotgun: {
       color: "white",
-      radius: 3,
-      speed: 10,
+      radius: 8,
+      speed: 15,
       dmg: 40,
+			penetration: false,
       precision: 20, //(degree)
-      pellet: 12,
+      pellet: 8,
       attackInterval: 750 //(msec)
     },
     gatling: {
       color: "white",
       radius: 3,
       speed: 20,
-      dmg: 12,
+      dmg: 8,
+			penetration: false,
       precision: 10, //(degree)
       attackInterval: 100 //(msec)
     }
@@ -136,7 +134,7 @@ const state = {
   isGameOver: false,
   leftLife: 3,
   score: 0,
-  proj: "gatling",
+  proj: "Cannon",
   launchable: true
 }
 
@@ -168,11 +166,11 @@ function createCannonProj() {
   state.launchable = false;
   setTimeout(function() {state.launchable = true}, opt.proj.cannon.attackInterval)
   const angle = Math.atan2(mousePoint.y - player.y, mousePoint.x - player.x)
-  const projectile = new Projectile(
+  const projectile = new Cannon(
     player.x, player.y, opt.proj.cannon.radius, opt.proj.cannon.color, {
       x: Math.cos(angle) * opt.proj.cannon.speed,
       y: Math.sin(angle) * opt.proj.cannon.speed
-    }, opt.proj.cannon.dmg
+    }, opt.proj.cannon.dmg, opt.proj.cannon.penetration
   )
   projectiles.cannon.push(projectile);
 }
@@ -189,7 +187,7 @@ function createShotgunProj() {
       player.x, player.y, opt.proj.shotgun.radius, opt.proj.shotgun.color, {
         x: Math.cos(randAngle) * opt.proj.shotgun.speed,
         y: Math.sin(randAngle) * opt.proj.shotgun.speed
-      }, opt.proj.shotgun.dmg
+      }, opt.proj.shotgun.dmg, opt.proj.shotgun.penetration
     )
     projectiles.shotgun.push(projectile);
   }
@@ -206,7 +204,7 @@ function createGatlingProj() {
     player.x, player.y, opt.proj.gatling.radius, opt.proj.gatling.color, {
       x: Math.cos(randAngle) * opt.proj.gatling.speed,
       y: Math.sin(randAngle) * opt.proj.gatling.speed
-    }, opt.proj.gatling.dmg
+    }, opt.proj.gatling.dmg, opt.proj.gatling.penetration
   )
   projectiles.gatling.push(projectile);
 }
@@ -393,8 +391,9 @@ function enemiesUpdate() {
         projectiles[projKey].forEach(function (proj, projIndex) {
           const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y)
           if(dist <= proj.radius + enemy.radius) {
-						console.log("touched");
-            projectiles[projKey].splice(projIndex, 1);
+						if(proj.penetration !== true) {
+            	projectiles[projKey].splice(projIndex, 1);
+						}
             gsap.to (enemy, {
               radius: enemy.radius - proj.dmg
             })
@@ -464,8 +463,10 @@ function gameStart() {
   state.isGameOver = false;
   state.score = 0;
 	state.proj = "basic";
-  while(projectiles.length > 0) {
-    projectiles.pop()
+  for(key in projectiles) {
+    while(projectiles[key].length > 0) {
+      projectiles[key].pop()
+    }
   }
   for(key in enemies) {
     while(enemies[key].length > 0) {

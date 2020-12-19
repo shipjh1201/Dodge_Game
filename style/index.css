@@ -14,12 +14,19 @@ canvas {
   left: 50%;
   transform: translate(-50%, -50%);
 }
-
-#life, #score {
-  color: white;
-  padding: 20px;
-  height: 30px;
+#wrapMenu {
+	display: flex;
+	flex-flow: column nowrap;
+	width: 50vw;
+	color: white;
 }
+
+#wrapMenu #score, #wrapMenu #life {
+	font-size: 1rem;
+	line-height: 100%;
+	color: white;
+}
+
 
 .board {
   display: inline-flex;
