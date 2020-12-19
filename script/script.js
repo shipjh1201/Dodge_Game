@@ -1,3 +1,4 @@
+console.log("this")
 const body = document.querySelector("body");
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
@@ -74,8 +75,10 @@ class Enemy extends Circle {
     super (x, y, radius, color, velocity)
     this.velocity = {x: velocity.x, y: velocity.y};
     this.score = score;
+		this.age = 0;
   }
   move() {
+		this.age += 1;
     this.x = this.x + this.velocity.x;
     this.y = this.y + this.velocity.y;
   }
@@ -83,12 +86,13 @@ class Enemy extends Circle {
 //Varibable opt(must not change in progress )
 const opt = {
   player: {
+		life: 3,
     color: "white",
     radius: 10,
     speed: 10
   },
   proj: {
-    list: ["basic", "shotgun", "gatling", "boomerang"],
+    list: ["cannon", "shotgun", "gatling", "boomerang"],
     cannon: {
       color: "white",
       radius: 100,
@@ -101,7 +105,7 @@ const opt = {
       color: "white",
       radius: 5,
       speed: 15,
-      dmg: 200,
+      dmg: 150,
 			penetration: false,
       precision: 20, //(degree)
       pellet: 16,
@@ -121,9 +125,9 @@ const opt = {
       radius: 8,
       speed: 40,
 			turnspeed: 20,
-			turnage: 20,
-      dmg: 1,
-			backdmg: 25,
+			turnage: 25,
+      dmg: 3,
+			backdmg: 30,
 			penetration: true,
       attackInterval: 250 //(msec)
 		}
@@ -136,7 +140,7 @@ const opt = {
       minRadius: 80,
       maxRadius: 100,
       speed: 0.1,
-      score: 3000
+      score: 1000
     },
     chase: {
       spawnInterval: 750, // (msec)
@@ -144,8 +148,16 @@ const opt = {
       minRadius: 30,
       maxRadius: 60,
       speed: 4,
-      score: 1000
-    }
+      score: 500
+    },
+		bounce: {
+			spawnInterval: 1500, // (msec)
+      color: 80,//hue value of hsl
+      minRadius: 50,
+      maxRadius: 100,
+      speed: 1,
+      score: 1500
+		}
   }
 }
 //Current State
@@ -153,7 +165,7 @@ const state = {
   isGameOver: false,
   leftLife: 3,
   score: 0,
-  proj: "Cannon",
+  proj: "cannon",
   launchable: true
 }
 
@@ -180,8 +192,14 @@ const projectiles = {
 }
 const enemies = {
   basic: [],
-  chase: []
+  chase: [],
+	bounce: []
 };
+const enemyCall = {
+	basic: null,
+	chase: null,
+	bounce: null
+}
 function createCannonProj() {
   state.launchable = false;
   setTimeout(function() {state.launchable = true}, opt.proj.cannon.attackInterval)
@@ -240,7 +258,7 @@ function createBoomerangProj() {
   projectiles.boomerang.push(projectile);
 }
 function createBasicEnemy() {
-  setTimeout(createBasicEnemy, opt.enemy.basic.spawnInterval);
+  enemyCall.basic = setTimeout(createBasicEnemy, opt.enemy.basic.spawnInterval);
   const radius = random.arrange(opt.enemy.basic.maxRadius, opt.enemy.basic.minRadius);
   let x;
   let y;
@@ -272,7 +290,7 @@ function createBasicEnemy() {
   }, opt.enemy.basic.score))
 }
 function createChaseEnemy() {
-  setTimeout(createChaseEnemy, opt.enemy.chase.spawnInterval);
+  enemyCall.chase = setTimeout(createChaseEnemy, opt.enemy.chase.spawnInterval);
   const radius = random.arrange(opt.enemy.chase.maxRadius, opt.enemy.chase.minRadius);
   let x;
   let y;
@@ -296,6 +314,38 @@ function createChaseEnemy() {
     x: 0,
     y: 0
   }, opt.enemy.chase.score))
+}
+function createBounceEnemy() {
+  enemyCall.bounce = setTimeout(createBounceEnemy, opt.enemy.bounce.spawnInterval);
+  const radius = random.arrange(opt.enemy.bounce.maxRadius, opt.enemy.bounce.minRadius);
+  let x;
+  let y;
+  random.event(
+    function(){
+      x = 0 - radius;
+      y = Math.random() * canvas.height;
+    }, function() {
+      x = canvas.width + radius;
+      y = Math.random() * canvas.height;
+    }, function() {
+      x = Math.random() * canvas.width;
+      y = 0 - radius;
+    }, function() {
+      x = Math.random() * canvas.width;
+      y = canvas.height + radius;
+    }
+  )
+  const angle = Math.atan2(player.y - y, player.x - x);
+  enemies.bounce.push(new Enemy(x, y, radius, `hsl(${opt.enemy.bounce.color}, ${random.arrange(50,80)}%, ${random.arrange(50,80)}%)`, {
+    x: Math.cos(angle)
+      / (radius**0.5)
+      * (opt.enemy.bounce.maxRadius + opt.enemy.bounce.minRadius) / 2
+      * opt.enemy.bounce.speed,
+    y: Math.sin(angle)
+      / (radius**0.5)
+      * (opt.enemy.bounce.maxRadius + opt.enemy.bounce.minRadius) / 2
+      * opt.enemy.bounce.speed
+  }, opt.enemy.bounce.score))
 }
 //EventListener
 window.addEventListener("keydown", keydownHandler);
@@ -392,16 +442,23 @@ function boomerangUpdate() {
 		if(dist <= player.radius + boo.radius && boo.age >= opt.proj.boomerang.turnage) {
 			 projectiles.boomerang.splice(booIndex, 1);
 		}
-		if(boo.age < opt.proj.boomerang.turnage) {
-			const angleWithMouse = Math.atan2(mousePoint.y - player.y, mousePoint.x - player.x)
-			boo.velocity.x = Math.cos(angleWithMouse) * opt.proj.boomerang.speed;
-			boo.velocity.y = Math.sin(angleWithMouse) * opt.proj.boomerang.speed;
-		} else if (boo.age >= opt.proj.boomerang.turnage) {
+		if (
+				boo.age >= opt.proj.boomerang.turnage ||
+				boo.x < 0 - boo.radius + 100 ||
+				boo.x > canvas.width + boo.radius - 100 ||
+				boo.y < 0 - boo.radius + 100 ||
+				boo.y > canvas.height + boo.radius - 100
+			) {
 			const angleWithPlayer = Math.atan2(player.y - boo.y, player.x - boo.x);
 			boo.dmg = opt.proj.boomerang.backdmg;
 			boo.velocity.x = Math.cos(angleWithPlayer) * opt.proj.boomerang.turnspeed;
 			boo.velocity.y = Math.sin(angleWithPlayer) * opt.proj.boomerang.turnspeed;
+		} else if(boo.age < opt.proj.boomerang.turnage) {
+			const angleWithMouse = Math.atan2(mousePoint.y - player.y, mousePoint.x - player.x)
+			boo.velocity.x = Math.cos(angleWithMouse) * opt.proj.boomerang.speed;
+			boo.velocity.y = Math.sin(angleWithMouse) * opt.proj.boomerang.speed;
 		}
+		
 	})
 }
 function changeProj() {
@@ -460,6 +517,25 @@ function chaseUpdate() {
     chase.velocity.y = Math.sin(angle) * opt.enemy.chase.speed;
   })
 }
+function bounceUpdate() {
+  enemies.bounce.forEach(function(bounce, bounceIndex) {
+    const angle = Math.atan2(player.y - bounce.y, player.x - bounce.x);
+    if(
+			bounce.age > 100 &&
+			(bounce.x <= bounce.radius + opt.enemy.bounce.speed ||
+			bounce.x >= canvas.width - bounce.radius  - opt.enemy.bounce.speed)
+		) {
+			bounce.velocity.x *= -1	
+		}
+		if(
+			bounce.age > 100 &&
+			(bounce.y <= bounce.radius + opt.enemy.bounce.speed ||
+			bounce.y >= canvas.height - bounce.radius  - opt.enemy.bounce.speed)
+		) {
+			bounce.velocity.y *= -1
+		}
+  })
+}
 //gameState update
 function drawState() {
   const score = document.querySelector("#score");
@@ -474,10 +550,11 @@ function addScore(score) {
 function startEnemy() {
   createBasicEnemy();
   createChaseEnemy();
+	createBounceEnemy();
 }
 function makeProj() {
   if(state.launchable === true && keyPress.click === true) {
-    if(state.proj === "basic") {
+    if(state.proj === "cannon") {
       createCannonProj();
     } else if (state.proj === "shotgun") {
       createShotgunProj();
@@ -491,14 +568,14 @@ function makeProj() {
 //main animationLoof
 function animationLoof() {
   let animate = requestAnimationFrame(animationLoof);
-	addScore(1)
   if (state.leftLife <= 0) {
     state.isGameOver = true;
   }
   if (state.isGameOver === true) {
     cancelAnimationFrame(animate);
-    init()
+    init();
   }
+	addScore(1)
   drawState();
   ctx.fillStyle = `rgba(0, 0, 0, 0.1)`
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -508,13 +585,14 @@ function animationLoof() {
 	boomerangUpdate();
   enemiesUpdate();
   chaseUpdate();
+	bounceUpdate();
 }
 function gameStart() {
   const board = document.querySelector(".board");
-  state.leftLife = 3;
+  state.leftLife = opt.player.life;
   state.isGameOver = false;
   state.score = 0;
-	state.proj = "basic";
+	state.proj = "gatling";
   for(key in projectiles) {
     while(projectiles[key].length > 0) {
       projectiles[key].pop()
@@ -534,6 +612,9 @@ function gameStart() {
 function init() {
   const board = document.querySelector(".board");
   const points = board.querySelector("#points");
+	for(key in enemyCall) {
+		clearTimeout(enemyCall[key]);
+	}
   window.clearTimeout();
   points.innerText = state.score;
   board.classList.remove("displayNone");
