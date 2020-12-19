@@ -1,0 +1,59 @@
+@import url(./reset.css);
+body {
+  background-color: black;
+	width: 100vw;
+	height: 100vh;
+	z-index: -2;
+}
+canvas {
+	width: 80vmin;
+	height: 80vmin;
+	border: 2px white solid;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#life, #score {
+  color: white;
+  padding: 20px;
+  height: 30px;
+}
+
+.board {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  width: 250px;
+  height: 150px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  border-radius: 5%;
+}
+
+#points {
+  color: black;
+  line-height: 100%;
+  font-size: 2rem;
+}
+#unit {
+  color: black;
+  line-height: 100%;
+  font-size: 1rem;
+}
+#gameStart {
+  color: white;
+  background-color: black;
+  line-height: 100%;
+  font-size: 1rem;
+  padding: 10px;
+  border-radius: 8%;
+}
+.displayNone {
+  display: none;
+}
