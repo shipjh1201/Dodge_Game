@@ -21,7 +21,7 @@ canvas {
 	color: white;
 }
 
-#wrapMenu #score, #wrapMenu #life {
+#wrapMenu #score, #wrapMenu #life, #wrapMenu #proj {
 	font-size: 1rem;
 	line-height: 100%;
 	color: white;

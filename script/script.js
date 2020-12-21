@@ -1,4 +1,3 @@
-console.log('this');
 const body = document.querySelector('body');
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
@@ -42,6 +41,17 @@ class Cannon extends Projectile {
 	constructor(x, y, radius, color, velocity, dmg, penetration) {
 		super(x, y, radius, color, velocity, dmg, penetration);
 		this.age = 0;
+	}
+	move() {
+		this.x = this.x + this.velocity.x;
+		this.y = this.y + this.velocity.y;
+		this.age += 1;
+		if (this.dmg < 300) {
+			this.dmg += 2 * (this.age / 20);
+		}
+		if (this.radius < 250) {
+			this.radius += 2 * (this.age / 20)
+		}
 	}
 }
 class Shotgun extends Projectile {
@@ -95,11 +105,11 @@ const opt = {
 		list: ['cannon', 'shotgun', 'gatling', 'boomerang'],
 		cannon: {
 			color: 'white',
-			radius: 100,
+			radius: 5,
 			speed: 30,
-			dmg: 75,
+			dmg: 1,
 			penetration: true,
-			attackInterval: 2000, //(msec)
+			attackInterval: 1000, //(msec)
 		},
 		shotgun: {
 			color: 'white',
@@ -114,7 +124,7 @@ const opt = {
 		gatling: {
 			color: 'white',
 			radius: 3,
-			speed: 20,
+			speed: 30,
 			dmg: 40,
 			penetration: false,
 			precision: 10, //(degree)
@@ -125,8 +135,8 @@ const opt = {
 			radius: 8,
 			speed: 40,
 			turnspeed: 20,
-			turnage: 25,
-			dmg: 3,
+			turnage: 30,
+			dmg: 10,
 			backdmg: 30,
 			penetration: true,
 			attackInterval: 250, //(msec)
@@ -467,6 +477,14 @@ function keydownHandler(e) {
 	} else if (e.code === 'KeyE') {
 		keyPress.change = true;
 		changeProj();
+	} else if (e.code === 'Digit1') {
+		state.proj = opt.proj.list[0];
+	} else if (e.code === 'Digit2') {
+		state.proj = opt.proj.list[1];
+	} else if (e.code === 'Digit3') {
+		state.proj = opt.proj.list[2];
+	} else if (e.code === 'Digit4') {
+		state.proj = opt.proj.list[3];
 	}
 }
 function keyupHandler(e) {
@@ -615,11 +633,18 @@ function bounceUpdate() {
 function drawState() {
 	const score = document.querySelector('#score');
 	const life = document.querySelector('#life');
+	const proj = document.querySelector('#proj');
 	score.innerText = `score : ${state.score}`;
 	life.innerText = `life : ${state.leftLife}`;
+	proj.innerText = `Current Type :${state.proj}`
 }
 function addScore(score) {
 	state.score += parseInt(score);
+}
+function stopMakeEnemy() {
+	for (key in enemyCall) {
+		clearTimeout(enemyCall[key]);
+	}
 }
 //add object bundle
 function startEnemy() {
@@ -687,9 +712,7 @@ function gameStart() {
 function init() {
 	const board = document.querySelector('.board');
 	const points = board.querySelector('#points');
-	for (key in enemyCall) {
-		clearTimeout(enemyCall[key]);
-	}
+	stopMakeEnemy();
 	window.clearTimeout();
 	points.innerText = state.score;
 	board.classList.remove('displayNone');
